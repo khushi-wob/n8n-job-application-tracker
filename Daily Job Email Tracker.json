@@ -49,7 +49,7 @@
     {
       "parameters": {
         "promptType": "define",
-        "text": "=You are processing ONE email from a job seeker's inbox. Read it and reply with ONLY a JSON object and nothing else. No explanation, no code fences.\n\nUse exactly these fields:\n{\n  \"is_job_related\": true or false,\n  \"type\": \"application_confirmation\" | \"rejection\" | \"interview_invite\" | \"assessment\" | \"other\",\n  \"company\": company name or null,\n  \"role\": job title or null,\n  \"location\": location if stated or null,\n  \"source\": where the person applied (LinkedIn, Indeed, company site, direct email) or null,\n  \"reason\": rejection reason if the email is a rejection and a reason is given, else null,\n  \"email_subject\": the subject line\n}\n\nIf the email is not about THIS person's own job applications (for example newsletters, job alerts, ads, or generic marketing), set is_job_related to false and set the other fields to null.\n\nHere is the email:\nSubject: {{ $json.subject }}\nFrom: {{ $json.from }}\nBody: {{ $json.text }}",
+        "text": "=You are processing ONE email from a job seeker's inbox. Read it and reply with ONLY a JSON object and nothing else. No explanation, no code fences.\n\nUse exactly these fields:\n{\n  \"is_job_related\": true or false,\n  \"type\": \"application_confirmation\" | \"rejection\" | \"interview_invite\" | \"assessment\" | \"other\",\n  \"company\": company name or null,\n  \"role\": job title or null,\n  \"location\": location if stated or null,\n  \"work_model\": \"remote\" | \"hybrid\" | \"onsite\" | null,\n  \"seniority\": \"intern\" | \"junior\" | \"mid\" | \"senior\" | \"lead\" | null,\n  \"source\": where the person applied (LinkedIn, Indeed, company site, direct email) or null,\n  \"application_method\": \"email\" | \"portal\" | null,\n  \"salary\": salary or salary range if the email mentions one, else null,\n  \"applied_date\": the date the person applied if the email states it, in YYYY-MM-DD, else null,\n  \"interview_datetime\": if this is an interview invite and a date and time are given, return them in ISO 8601 (YYYY-MM-DDTHH:mm), else null,\n  \"reason\": rejection reason if the email is a rejection and a reason is given, else null,\n  \"rejection_quality\": if this is a rejection, \"generic\" for an automated form rejection or \"personalized\" if it references the person or role specifically, else null,\n  \"email_subject\": the subject line\n}\n\nIf the email is not about THIS person's own job applications (for example newsletters, job alerts, ads, or generic marketing), set is_job_related to false and set the other fields to null.\n\nHere is the email:\nSubject: {{ $json.subject }}\nFrom: {{ $json.from }}\nBody: {{ $json.text }}",
         "batching": {}
       },
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
@@ -153,20 +153,27 @@
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
-            "Date": "={{ $now.format('yyyy-MM-dd') }}",
+            "Location": "={{ $json.location }}",
+            "Reason": "={{ $json.reason }}",
+            "Work model": "={{ $json.work_model }}",
             "Type": "={{ $json.type }}",
             "Company": "={{ $json.company }}",
-            "Location": "={{ $json.location }}",
             "Role": "={{ $json.role }}",
             "Source": "={{ $json.source }}",
-            "Reason": "={{ $json.reason }}",
-            "Email subject": "={{ $json.email_subject }}"
+            "Email subject": "={{ $json.email_subject }}",
+            "Applied date": "={{ $json.applied_date }}",
+            "Rejection quality": "={{ $json.rejection_quality }}",
+            "Salary": "={{ $json.salary }}",
+            "Application method": "={{ $json.application_method }}",
+            "Seniority": "={{ $json.seniority }}",
+            "Email date": "={{ $('Get Emails').item.json.date }}",
+            "Permalink": "=https://mail.google.com/mail/u/0/#all/{{ $('Get Emails').item.json.id }}"
           },
           "matchingColumns": [],
           "schema": [
             {
-              "id": "Date",
-              "displayName": "Date",
+              "id": "Email date",
+              "displayName": "Email date",
               "required": false,
               "defaultMatch": false,
               "display": true,
@@ -234,8 +241,79 @@
               "defaultMatch": false,
               "display": true,
               "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": false
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Applied date",
+              "displayName": "Applied date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Days since applied",
+              "displayName": "Days since applied",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Work model",
+              "displayName": "Work model",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Seniority",
+              "displayName": "Seniority",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Application method",
+              "displayName": "Application method",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Salary",
+              "displayName": "Salary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Rejection quality",
+              "displayName": "Rejection quality",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Permalink",
+              "displayName": "Permalink",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
             }
           ],
           "attemptToConvertTypes": false,
@@ -279,6 +357,80 @@
         "gmailOAuth2": {
           "id": "IK8tEbSb06KvVxoM",
           "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "32876498-ed5c-4b6e-98d9-13e2813dbdf8",
+              "leftValue": "={{ $json.type }}",
+              "rightValue": "interview_invite",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            },
+            {
+              "id": "dbc4fb6e-a3ab-442f-9b18-6bb57f03bb18",
+              "leftValue": "={{ $json.interview_datetime }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1184,
+        -208
+      ],
+      "id": "660cd950-77f3-4c2d-b979-27e9c231bc9a",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "calendar": {
+          "__rl": true,
+          "value": "khushiverma8433@gmail.com",
+          "mode": "list",
+          "cachedResultName": "khushiverma8433@gmail.com"
+        },
+        "start": "={{ $json.interview_datetime }}",
+        "end": "={{ DateTime.fromISO($json.interview_datetime).plus({ hours: 1 }).toISO() }}",
+        "additionalFields": {
+          "description": "={{ $json.email_subject }}",
+          "summary": "=Interview: {{ $json.company }} - {{ $json.role }}"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        1392,
+        -304
+      ],
+      "id": "4160190a-043e-48d9-95ed-625b77fea175",
+      "name": "Create an event",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "6Fr0rA5b9uJnaYxk",
+          "name": "Google Calendar account"
         }
       }
     }
@@ -347,6 +499,11 @@
             "node": "Append row in sheet",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -361,14 +518,26 @@
           }
         ]
       ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Create an event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,
   "settings": {
     "executionOrder": "v1",
-    "binaryMode": "separate"
+    "binaryMode": "separate",
+    "availableInMCP": false
   },
-  "versionId": "e5c53840-a409-4ae6-abce-fa6e248f5667",
+  "versionId": "58c7891a-5b45-47ad-81c6-5c48bfb95b2f",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "f2834c513055a18a1ac9440e78fcba2fc19ee46991236b94fe099fdab52ccfcb"
