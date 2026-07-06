@@ -48,7 +48,7 @@ Deduplication is handled with a Gmail label: once an email is logged, it is tagg
 
 | Field | Description |
 |-------|-------------|
-| Date | Date the email was processed |
+| Email date | Date the email was sent |
 | Type | application_confirmation, rejection, interview_invite, assessment, or other |
 | Company | Hiring company |
 | Role | Job title |
@@ -56,6 +56,14 @@ Deduplication is handled with a Gmail label: once an email is logged, it is tagg
 | Source | Where the application was made (LinkedIn, Indeed, company site, direct email) |
 | Reason | Rejection reason, when one is given |
 | Email subject | Original subject line |
+| Applied date | Date the person applied, when the email states it |
+| Days since applied | Days between the applied date and today (sheet formula) |
+| Work model | remote, hybrid, or onsite |
+| Seniority | intern, junior, mid, senior, or lead |
+| Application method | email or portal |
+| Salary | Salary or range, when mentioned |
+| Rejection quality | generic or personalized, for rejection emails |
+| Permalink | Direct link back to the original Gmail message |
 
 ## Tech stack
 
