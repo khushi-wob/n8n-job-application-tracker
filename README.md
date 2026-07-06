@@ -1,4 +1,5 @@
 # Job Application Tracker
+![Workflow](workflow.png)
 
 An automated pipeline that reads my Gmail every day, uses Claude (Anthropic) to understand each job-related email, logs every application, rejection, interview invite, and assessment into a Google Sheet, and automatically adds interview invites to my Google Calendar. Built end to end with self-hosted n8n.
 
