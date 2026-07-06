@@ -1,0 +1,379 @@
+{
+  "name": "Daily Job Email Tracker",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 18
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "417c6d26-153e-4253-a7ac-a386ad22ea58",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "returnAll": true,
+        "simple": false,
+        "filters": {
+          "q": "newer_than:2d"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "5f598fbb-a32a-4755-ad6f-6463f2c9b0ae",
+      "name": "Get Emails",
+      "webhookId": "af229a0c-f07e-4f1a-b36a-d96b6cbe3c17",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "IK8tEbSb06KvVxoM",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are processing ONE email from a job seeker's inbox. Read it and reply with ONLY a JSON object and nothing else. No explanation, no code fences.\n\nUse exactly these fields:\n{\n  \"is_job_related\": true or false,\n  \"type\": \"application_confirmation\" | \"rejection\" | \"interview_invite\" | \"assessment\" | \"other\",\n  \"company\": company name or null,\n  \"role\": job title or null,\n  \"location\": location if stated or null,\n  \"source\": where the person applied (LinkedIn, Indeed, company site, direct email) or null,\n  \"reason\": rejection reason if the email is a rejection and a reason is given, else null,\n  \"email_subject\": the subject line\n}\n\nIf the email is not about THIS person's own job applications (for example newsletters, job alerts, ads, or generic marketing), set is_job_related to false and set the other fields to null.\n\nHere is the email:\nSubject: {{ $json.subject }}\nFrom: {{ $json.from }}\nBody: {{ $json.text }}",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        432,
+        0
+      ],
+      "id": "cde2c967-c9bd-48f1-a897-b0be7b22450e",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "claude-haiku-4-5-20251001",
+          "mode": "list",
+          "cachedResultName": "Claude Haiku 4.5"
+        },
+        "options": {
+          "maxTokensToSample": 1000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.5,
+      "position": [
+        368,
+        208
+      ],
+      "id": "7797bde8-23c4-488d-9855-6c36b74db533",
+      "name": "Anthropic Chat Model",
+      "credentials": {
+        "anthropicApi": {
+          "id": "R2mAItxqHRDBSDQ0",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const out = [];\n   const items = $input.all();\n   for (let i = 0; i < items.length; i++) {\n     const raw = items[i].json.text || items[i].json.output || items[i].json.response || \"\";\n     let data;\n     try {\n       const start = raw.indexOf(\"{\");\n       const end = raw.lastIndexOf(\"}\");\n       data = JSON.parse(raw.slice(start, end + 1));\n     } catch (e) {\n       data = { is_job_related: false };\n     }\n     out.push({ json: data, pairedItem: { item: i } });\n   }\n   return out;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        784,
+        0
+      ],
+      "id": "a4dffbc4-6335-4487-be29-aa631bf1daec",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "4aebed11-49bc-4694-a5d5-a5a0a30d3cb9",
+              "leftValue": "={{ $json.is_job_related }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        992,
+        0
+      ],
+      "id": "e39ec10f-984c-4bd9-bbc7-d002d9834a10",
+      "name": "Filter"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1ZCJuifusSTsgH8Vk0W6KX6HehNuXDsvep9XEC75eNJM/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ZCJuifusSTsgH8Vk0W6KX6HehNuXDsvep9XEC75eNJM/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $now.format('yyyy-MM-dd') }}",
+            "Type": "={{ $json.type }}",
+            "Company": "={{ $json.company }}",
+            "Location": "={{ $json.location }}",
+            "Role": "={{ $json.role }}",
+            "Source": "={{ $json.source }}",
+            "Reason": "={{ $json.reason }}",
+            "Email subject": "={{ $json.email_subject }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Type",
+              "displayName": "Type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Company",
+              "displayName": "Company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Role",
+              "displayName": "Role",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Location",
+              "displayName": "Location",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Source",
+              "displayName": "Source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Reason",
+              "displayName": "Reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email subject",
+              "displayName": "Email subject",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1200,
+        0
+      ],
+      "id": "f5cd382d-48fb-4df4-ae5d-f65163d22e88",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "q5ktAo2t45MXbOfK",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $('Get Emails').item.json.id }}",
+        "labelIds": [
+          "Label_6888857798224906451"
+        ]
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1408,
+        0
+      ],
+      "id": "87a70917-333b-438d-87ae-a60e1d7d52cb",
+      "name": "Add label to message",
+      "webhookId": "3c9c3436-ac08-4a3b-92aa-9cb27fe6ebd9",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "IK8tEbSb06KvVxoM",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Emails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Emails": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anthropic Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Add label to message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "e5c53840-a409-4ae6-abce-fa6e248f5667",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "f2834c513055a18a1ac9440e78fcba2fc19ee46991236b94fe099fdab52ccfcb"
+  },
+  "nodeGroups": [],
+  "id": "VTauARTtHSAyokrI",
+  "tags": []
+}
